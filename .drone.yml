@@ -44,11 +44,21 @@ pipeline:
     commands:
       - wait-for-it -t 300 owncloud-server:80
 
-  litmus-test:
+  litmus-test-old-endpoint:
     image: owncloud/litmus:${LITMUS_VERSION}
     pull: true
     environment:
       - LITMUS_URL=http://owncloud-server/remote.php/webdav
+      - LITMUS_USERNAME=admin
+      - LITMUS_PASSWORD=admin
+    commands:
+      - litmus-wrapper
+
+  litmus-test-new-endpoint:
+    image: owncloud/litmus:${LITMUS_VERSION}
+    pull: true
+    environment:
+      - LITMUS_URL=http://owncloud-server/remote.php/dav/files/admin
       - LITMUS_USERNAME=admin
       - LITMUS_PASSWORD=admin
     commands:

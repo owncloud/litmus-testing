@@ -18,6 +18,7 @@ Fork -> Patch -> Push -> Pull Request
 ## Authors
 
 * [Thomas Boerger](https://github.com/tboerger)
+* [Thomas Müller](https://github.com/DeepDiver1975)
 
 
 ## License
