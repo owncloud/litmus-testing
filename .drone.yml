@@ -23,7 +23,7 @@ pipeline:
       - tar -jxf owncloud-${SERVER_VERSION}.tar.bz2 -C /var/www
 
   owncloud-server:
-    image: ${SERVER_IMAGE}
+    image: owncloud/base:bionic
     pull: true
     detach: true
     environment:
@@ -42,23 +42,23 @@ pipeline:
     image: owncloud/ubuntu:latest
     pull: true
     commands:
-      - wait-for-it -t 300 owncloud-server:80
+      - wait-for-it -t 300 owncloud-server:8080
 
-  litmus-test-old-endpoint:
+  litmus-oldapi:
     image: owncloud/litmus:${LITMUS_VERSION}
     pull: true
     environment:
-      - LITMUS_URL=http://owncloud-server/remote.php/webdav
+      - LITMUS_URL=http://owncloud-server:8080/remote.php/webdav
       - LITMUS_USERNAME=admin
       - LITMUS_PASSWORD=admin
     commands:
       - litmus-wrapper
 
-  litmus-test-new-endpoint:
+  litmus-newapi:
     image: owncloud/litmus:${LITMUS_VERSION}
     pull: true
     environment:
-      - LITMUS_URL=http://owncloud-server/remote.php/dav/files/admin
+      - LITMUS_URL=http://owncloud-server:8080/remote.php/dav/files/admin
       - LITMUS_USERNAME=admin
       - LITMUS_PASSWORD=admin
     commands:
@@ -70,7 +70,7 @@ pipeline:
     secrets: [ slack_webhook ]
     channel: litmus
     template: >
-      *{{build.status}}* <{{build.link}}|{{repo.owner}}/{{repo.name}}#{{truncate build.commit 8}}> litmus on ${SERVER_VERSION} - general
+      *{{build.status}}* <{{build.link}}|{{repo.owner}}/{{repo.name}}#{{truncate build.commit 8}}> basic:litmus:${SERVER_VERSION}:general
     when:
       local: false
       status: [ changed, failure ]
@@ -78,6 +78,7 @@ pipeline:
 services:
   mysql:
     image: library/mariadb:10.3
+    pull: true
     environment:
       - MYSQL_USER=owncloud
       - MYSQL_PASSWORD=owncloud
@@ -86,13 +87,12 @@ services:
 
   redis:
     image: library/redis:4.0
+    pull: true
 
 matrix:
   include:
     - LITMUS_VERSION: latest
       SERVER_VERSION: daily-master
-      SERVER_IMAGE: owncloud/base:bionic
 
     - LITMUS_VERSION: latest
       SERVER_VERSION: daily-stable10
-      SERVER_IMAGE: owncloud/base:xenial
