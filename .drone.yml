@@ -93,6 +93,3 @@ matrix:
   include:
     - LITMUS_VERSION: latest
       SERVER_VERSION: daily-master
-
-    - LITMUS_VERSION: latest
-      SERVER_VERSION: daily-stable10
