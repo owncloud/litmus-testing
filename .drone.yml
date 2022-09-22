@@ -14,7 +14,7 @@ pipeline:
   owncloud-download:
     image: plugins/download:1
     pull: true
-    source: https://download.owncloud.org/community/owncloud-${SERVER_VERSION}.tar.bz2
+    source: https://download.owncloud.com/server/daily/owncloud-${SERVER_VERSION}.tar.bz2
 
   owncloud-unpack:
     image: owncloud/ubuntu:latest
