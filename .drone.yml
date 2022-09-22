@@ -67,14 +67,12 @@ pipeline:
   notify-rocketchat:
     image: plugins/slack:1
     pull: true
-    secrets: [ slack_webhook ]
-    channel: litmus
-    template: >
-      *{{build.status}}* <{{build.link}}|{{repo.owner}}/{{repo.name}}#{{truncate build.commit 8}}> basic:litmus:${SERVER_VERSION}:general
+    secrets: [slack_webhook]
+    channel: builds
     when:
-      local: false
-      status: [ changed, failure ]
-
+      status:
+        - failure
+        - success
 services:
   mysql:
     image: library/mariadb:10.3
