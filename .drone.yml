@@ -23,7 +23,7 @@ pipeline:
       - tar -jxf owncloud-${SERVER_VERSION}.tar.bz2 -C /var/www
 
   owncloud-server:
-    image: owncloud/base:bionic
+    image: owncloudci/php:7.4
     pull: true
     detach: true
     environment:
