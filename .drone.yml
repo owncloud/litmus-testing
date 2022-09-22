@@ -11,32 +11,18 @@ clone:
     pull: true
 
 pipeline:
-  owncloud-download:
-    image: plugins/download:1
-    pull: true
-    source: https://download.owncloud.com/server/daily/owncloud-${SERVER_VERSION}.tar.bz2
-
-  owncloud-unpack:
-    image: owncloud/ubuntu:latest
-    pull: true
-    commands:
-      - tar -jxf owncloud-${SERVER_VERSION}.tar.bz2 -C /var/www
-
   owncloud-server:
-    image: owncloudci/php:7.4
+    image: owncloudci/core
     pull: true
     detach: true
-    environment:
-      - OWNCLOUD_DOMAIN=owncloud-server
-      - OWNCLOUD_DB_TYPE=mysql
-      - OWNCLOUD_DB_NAME=owncloud
-      - OWNCLOUD_DB_USERNAME=owncloud
-      - OWNCLOUD_DB_PASSWORD=owncloud
-      - OWNCLOUD_DB_HOST=mysql
-      - OWNCLOUD_REDIS_ENABLED=true
-      - OWNCLOUD_REDIS_HOST=redis
-      - OWNCLOUD_ADMIN_USERNAME=admin
-      - OWNCLOUD_ADMIN_PASSWORD=admin
+    settings:
+      version: ${SERVER_VERSION}
+      core_path: /var/www
+      db_type: mysql
+      db_name: owncloud
+      db_host: mysql
+      db_username: owncloud
+      db_password: owncloud
 
   owncloud-waiting:
     image: owncloud/ubuntu:latest
@@ -67,13 +53,13 @@ pipeline:
   notify-rocketchat:
     image: plugins/slack:1
     pull: true
-    secrets: [ slack_webhook ]
+    secrets: [slack_webhook]
     channel: litmus
     template: >
       *{{build.status}}* <{{build.link}}|{{repo.owner}}/{{repo.name}}#{{truncate build.commit 8}}> basic:litmus:${SERVER_VERSION}:general
     when:
       local: false
-      status: [ changed, failure ]
+      status: [changed, failure]
 
 services:
   mysql:
