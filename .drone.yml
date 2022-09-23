@@ -15,112 +15,112 @@ steps:
 trigger:
   ref:
     - refs/pull/**
-# ---
-# {
-#   'kind': 'pipeline',
-#   'type': 'docker',
-#   'name': 'matrix-1',
-#   'workspace': { 'base': '/var/www/owncloud' },
-#   'services':
-#     [
-#       {
-#         'name': 'server',
-#         'image': 'owncloudci/php:7.4',
-#         'environment':
-#           {
-#             'APACHE_WEBROOT': '/var/www/owncloud/server',
-#             'APACHE_LOGGING_PATH': '/dev/null',
-#           },
-#         'commands': ['/usr/local/bin/apachectl -e debug -D FOREGROUND'],
-#       },
-#       {
-#         'name': 'mysql',
-#         'image': 'mysql',
-#         'environment':
-#           {
-#             'MYSQL_USER': 'owncloud',
-#             'MYSQL_PASSWORD': 'owncloud',
-#             'MYSQL_DATABASE': 'owncloud',
-#             'MYSQL_ROOT_PASSWORD': 'owncloud',
-#           },
-#         'command': ['--default-authentication-plugin=mysql_native_password'],
-#       },
-#     ],
-#   'steps':
-#     [
-#       {
-#         'name': 'install-core',
-#         'image': 'owncloudci/core',
-#         'settings':
-#           {
-#             'version': 'daily-master',
-#             'core_path': '/var/www/owncloud/server',
-#             'db_type': 'mysql',
-#             'db_name': 'owncloud',
-#             'db_host': 'mysql',
-#             'db_username': 'owncloud',
-#             'db_password': 'owncloud',
-#           },
-#       },
-#       {
-#         'name': 'wait-for-server',
-#         'image': 'owncloudci/wait-for:latest',
-#         'commands': ['wait-for -it server:80 -t 600'],
-#       },
-#       {
-#         'name': 'owncloud-log',
-#         'image': 'owncloud/ubuntu:20.04',
-#         'detach': true,
-#         'commands': ['tail -f /var/www/owncloud/server/data/owncloud.log'],
-#       },
-#       {
-#         'name': 'litmus-old-api',
-#         'image': 'owncloud/litmus:latest',
-#         'environment':
-#           {
-#             'LITMUS_PASSWORD': 'admin',
-#             'LITMUS_USERNAME': 'admin',
-#             'LITMUS_URL': 'http://server:80/remote.php/webdav',
-#           },
-#         'commands': ['litmus-wrapper'],
-#       },
-#       {
-#         'name': 'litmus-new-api',
-#         'image': 'owncloud/litmus:latest',
-#         'environment':
-#           {
-#             'LITMUS_PASSWORD': 'admin',
-#             'LITMUS_USERNAME': 'admin',
-#             'LITMUS_URL': 'http://server:80/remote.php/dav/files/admin',
-#           },
-#         'commands': ['litmus-wrapper'],
-#       },
-#     ],
-#   'depends_on': ['cancel-previous-builds'],
-#   'trigger': { 'ref': ['refs/tags/**', 'refs/heads/master', 'refs/pull/**'] },
-# }
-# ---
-# {
-#   'kind': 'pipeline',
-#   'type': 'docker',
-#   'name': 'chat-notifications',
-#   'clone': { 'disable': true },
-#   'steps':
-#     [
-#       {
-#         'name': 'notify-rocketchat',
-#         'image': 'plugins/slack:1',
-#         'settings':
-#           {
-#             'webhook': { 'from_secret': 'private_rocketchat' },
-#             'channel': 'desktop-client-builds',
-#           },
-#       },
-#     ],
-#   'depends_on': ['matrix-1'],
-#   'trigger':
-#     {
-#       'ref': ['refs/tags/**', 'refs/heads/master', 'refs/pull/**'],
-#       'status': ['success', 'failure'],
-#     },
-# }
+
+#
+# Litmus tests
+#
+---
+kind: pipeline
+type: docker
+name: matrix-1
+workspace:
+  base: /var/www/owncloud
+
+services:
+  - name: server
+    image: owncloudci/php:7.4
+    environment:
+      APACHE_WEBROOT: /var/www/owncloud/server
+      APACHE_LOGGING_PATH: /dev/null
+    commands:
+      - /usr/local/bin/apachectl -e debug -D FOREGROUND
+
+  - name: mysql
+    image: mysql
+    environment:
+      MYSQL_USER: owncloud
+      MYSQL_PASSWORD: owncloud
+      MYSQL_DATABASE: owncloud
+      MYSQL_ROOT_PASSWORD: owncloud
+    command:
+      - --default-authentication-plugin=mysql_native_password
+
+steps:
+  - name: install-core
+    image: owncloudci/core
+    settings:
+      version: daily-master
+      core_path: /var/www/owncloud/server
+      db_type: mysql
+      db_name: owncloud
+      db_host: mysql
+      db_username: owncloud
+      db_password: owncloud
+
+  - name: wait-for-server
+    image: owncloudci/wait-for:latest
+    commands:
+      - wait-for -it server:80 -t 600
+
+  - name: owncloud-log
+    image: owncloud/ubuntu:20.04
+    detach: true
+    commands:
+      - tail -f /var/www/owncloud/server/data/owncloud.log
+
+  - name: litmus-old-api
+    image: owncloud/litmus:latest
+    environment:
+      LITMUS_PASSWORD: admin
+      LITMUS_USERNAME: admin
+      LITMUS_URL: http://server:80/remote.php/webdav
+    commands:
+      - litmus-wrapper
+
+  - name: litmus-new-api
+    image: owncloud/litmus:latest
+    environment:
+      LITMUS_PASSWORD: admin
+      LITMUS_USERNAME: admin
+      LITMUS_URL': http://server:80/remote.php/dav/files/admin
+    commands:
+      - litmus-wrapper
+
+depends_on:
+  - cancel-previous-builds
+
+trigger:
+  ref:
+    - refs/tags/**
+    - refs/heads/master
+    - refs/pull/**
+
+#
+# Rocket-caht Notification
+#
+---
+kind: pipeline
+type: docker
+name: chat-notifications
+clone:
+  disable: true
+
+steps:
+  - name: notify-rocketchat
+    image: plugins/slack:1
+    settings:
+      webhook:
+        from_secret: private_rocketchat
+      channel: desktop-client-builds
+
+depends_on:
+  - matrix-1
+
+trigger:
+  ref:
+    - refs/tags/**
+    - refs/heads/master
+    - refs/pull/**
+  status:
+    - success
+    - failure
