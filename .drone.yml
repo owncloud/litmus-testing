@@ -122,7 +122,7 @@ steps:
     settings:
       webhook:
         from_secret: private_rocketchat
-      channel: desktop-client-builds
+      channel: builds
 
 depends_on:
   - matrix-1
@@ -131,7 +131,6 @@ trigger:
   ref:
     - refs/tags/**
     - refs/heads/master
-    - refs/pull/**
   status:
     - success
     - failure
