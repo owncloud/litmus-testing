@@ -62,12 +62,16 @@ steps:
     commands:
       - wait-for -it server:80 -t 600
 
+  - name: setup-server
+    image: owncloudci/php:7.4
+    commands:
+      - cd /var/www/owncloud/server
+      - php occ config:system:set trusted_domains 1 --value=server
+
   - name: fix-permissions
     image: owncloudci/php:7.4
     commands:
-      - ls -al  /var/www/owncloud/server
       - chown -R www-data /var/www/owncloud/server
-      - ls -al  /var/www/owncloud/server
 
   - name: owncloud-log
     image: owncloud/ubuntu:20.04
