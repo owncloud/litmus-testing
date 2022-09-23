@@ -62,6 +62,13 @@ steps:
     commands:
       - wait-for -it server:80 -t 600
 
+  - name: fix-permissions
+    image: owncloudci/php:7.4
+    commands:
+      - ls -al  /var/www/owncloud/server
+      - chown -R www-data /var/www/owncloud/server
+      - ls -al  /var/www/owncloud/server
+
   - name: owncloud-log
     image: owncloud/ubuntu:20.04
     detach: true
@@ -82,7 +89,7 @@ steps:
     environment:
       LITMUS_PASSWORD: admin
       LITMUS_USERNAME: admin
-      LITMUS_URL': http://server:80/remote.php/dav/files/admin
+      LITMUS_URL: http://server:80/remote.php/dav/files/admin
     commands:
       - litmus-wrapper
 
