@@ -1,95 +1,136 @@
-workspace:
-  base: /var/www
-  path:
-
-branches:
-  - master
-
+---
+kind: pipeline
+type: docker
+name: cancel-previous-builds
 clone:
-  git:
-    image: plugins/git:1
-    pull: true
+  disable: true
 
-pipeline:
-  owncloud-download:
-    image: plugins/download:1
-    pull: true
-    source: https://download.owncloud.org/community/owncloud-${SERVER_VERSION}.tar.bz2
+steps:
+  - name: cancel-previous-builds
+    image: owncloudci/drone-cancel-previous-builds
+    settings:
+      DRONE_TOKEN:
+        from_secret: drone_token
 
-  owncloud-unpack:
-    image: owncloud/ubuntu:latest
-    pull: true
-    commands:
-      - tar -jxf owncloud-${SERVER_VERSION}.tar.bz2 -C /var/www
+trigger:
+  ref:
+    - refs/pull/**
 
-  owncloud-server:
-    image: owncloud/base:bionic
-    pull: true
-    detach: true
-    environment:
-      - OWNCLOUD_DOMAIN=owncloud-server
-      - OWNCLOUD_DB_TYPE=mysql
-      - OWNCLOUD_DB_NAME=owncloud
-      - OWNCLOUD_DB_USERNAME=owncloud
-      - OWNCLOUD_DB_PASSWORD=owncloud
-      - OWNCLOUD_DB_HOST=mysql
-      - OWNCLOUD_REDIS_ENABLED=true
-      - OWNCLOUD_REDIS_HOST=redis
-      - OWNCLOUD_ADMIN_USERNAME=admin
-      - OWNCLOUD_ADMIN_PASSWORD=admin
-
-  owncloud-waiting:
-    image: owncloud/ubuntu:latest
-    pull: true
-    commands:
-      - wait-for-it -t 300 owncloud-server:8080
-
-  litmus-oldapi:
-    image: owncloud/litmus:${LITMUS_VERSION}
-    pull: true
-    environment:
-      - LITMUS_URL=http://owncloud-server:8080/remote.php/webdav
-      - LITMUS_USERNAME=admin
-      - LITMUS_PASSWORD=admin
-    commands:
-      - litmus-wrapper
-
-  litmus-newapi:
-    image: owncloud/litmus:${LITMUS_VERSION}
-    pull: true
-    environment:
-      - LITMUS_URL=http://owncloud-server:8080/remote.php/dav/files/admin
-      - LITMUS_USERNAME=admin
-      - LITMUS_PASSWORD=admin
-    commands:
-      - litmus-wrapper
-
-  notify-rocketchat:
-    image: plugins/slack:1
-    pull: true
-    secrets: [ slack_webhook ]
-    channel: litmus
-    template: >
-      *{{build.status}}* <{{build.link}}|{{repo.owner}}/{{repo.name}}#{{truncate build.commit 8}}> basic:litmus:${SERVER_VERSION}:general
-    when:
-      local: false
-      status: [ changed, failure ]
+#
+# Litmus tests
+#
+---
+kind: pipeline
+type: docker
+name: matrix-1
+workspace:
+  base: /var/www/owncloud
 
 services:
-  mysql:
-    image: library/mariadb:10.3
-    pull: true
+  - name: server
+    image: owncloudci/php:7.4
     environment:
-      - MYSQL_USER=owncloud
-      - MYSQL_PASSWORD=owncloud
-      - MYSQL_DATABASE=owncloud
-      - MYSQL_ROOT_PASSWORD=owncloud
+      APACHE_WEBROOT: /var/www/owncloud/server
+      APACHE_LOGGING_PATH: /dev/null
+    commands:
+      - /usr/local/bin/apachectl -e debug -D FOREGROUND
 
-  redis:
-    image: library/redis:4.0
-    pull: true
+  - name: mysql
+    image: mysql
+    environment:
+      MYSQL_USER: owncloud
+      MYSQL_PASSWORD: owncloud
+      MYSQL_DATABASE: owncloud
+      MYSQL_ROOT_PASSWORD: owncloud
+    command:
+      - --default-authentication-plugin=mysql_native_password
 
-matrix:
-  include:
-    - LITMUS_VERSION: latest
-      SERVER_VERSION: daily-master
+steps:
+  - name: install-core
+    image: owncloudci/core
+    settings:
+      version: daily-master
+      core_path: /var/www/owncloud/server
+      db_type: mysql
+      db_name: owncloud
+      db_host: mysql
+      db_username: owncloud
+      db_password: owncloud
+
+  - name: wait-for-server
+    image: owncloudci/wait-for:latest
+    commands:
+      - wait-for -it server:80 -t 600
+
+  - name: setup-server
+    image: owncloudci/php:7.4
+    commands:
+      - cd /var/www/owncloud/server
+      - php occ config:system:set trusted_domains 1 --value=server
+
+  - name: fix-permissions
+    image: owncloudci/php:7.4
+    commands:
+      - chown -R www-data /var/www/owncloud/server
+
+  - name: owncloud-log
+    image: owncloud/ubuntu:20.04
+    detach: true
+    commands:
+      - tail -f /var/www/owncloud/server/data/owncloud.log
+
+  - name: litmus-old-api
+    image: owncloud/litmus:latest
+    environment:
+      LITMUS_PASSWORD: admin
+      LITMUS_USERNAME: admin
+      LITMUS_URL: http://server:80/remote.php/webdav
+    commands:
+      - litmus-wrapper
+
+  - name: litmus-new-api
+    image: owncloud/litmus:latest
+    environment:
+      LITMUS_PASSWORD: admin
+      LITMUS_USERNAME: admin
+      LITMUS_URL: http://server:80/remote.php/dav/files/admin
+    commands:
+      - litmus-wrapper
+
+depends_on:
+  - cancel-previous-builds
+
+trigger:
+  ref:
+    - refs/tags/**
+    - refs/heads/master
+    - refs/pull/**
+
+#
+# Rocket-caht Notification
+#
+---
+kind: pipeline
+type: docker
+name: chat-notifications
+clone:
+  disable: true
+
+steps:
+  - name: notify-rocketchat
+    image: plugins/slack:1
+    settings:
+      webhook:
+        from_secret: private_rocketchat
+      channel: builds
+
+depends_on:
+  - matrix-1
+
+trigger:
+  ref:
+    - refs/tags/**
+    - refs/heads/master
+  status:
+    - success
+    - failure
