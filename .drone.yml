@@ -80,7 +80,7 @@ steps:
       - tail -f /var/www/owncloud/server/data/owncloud.log
 
   - name: litmus-old-api
-    image: owncloud/litmus:latest
+    image: owncloudci/litmus
     environment:
       LITMUS_PASSWORD: admin
       LITMUS_USERNAME: admin
@@ -89,7 +89,7 @@ steps:
       - litmus-wrapper
 
   - name: litmus-new-api
-    image: owncloud/litmus:latest
+    image: owncloudci/litmus
     environment:
       LITMUS_PASSWORD: admin
       LITMUS_USERNAME: admin
