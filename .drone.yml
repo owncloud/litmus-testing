@@ -25,7 +25,7 @@ services:
       MYSQL_DATABASE: owncloud
       MYSQL_ROOT_PASSWORD: owncloud
     command:
-      - --default-authentication-plugin=mysql_native_password
+      - --mysql-native-password=ON
 
 steps:
   - name: install-core
